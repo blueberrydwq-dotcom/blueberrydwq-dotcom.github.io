@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>A Creator</title>
+<style>
+:root{
+  --bg:#000;--fg:#f2f2f2;--dim:#666;
+  --c-prompt:#79c0ff;    /* terminal blue — for > prompts */
+  --c-keyword:#98c379;   /* soft green — for command names */
+  --c-string:#e5c07b;    /* amber — for ranks/values */
+  --c-accent:#e06c75;    /* coral — for accents */
+  --c-active:#7ee787;    /* mint — for ACTIVE status */
+}
+.c-prompt{color:var(--c-prompt);}
+.c-keyword{color:var(--c-keyword);}
+.c-string{color:var(--c-string);}
+.c-active{color:var(--c-active);}
+
+*{box-sizing:border-box;}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);}
+body{display:flex;flex-direction:column;align-items:center;font-family:"IBM Plex Mono","Courier New",monospace;padding:40px 20px 100px;overflow-x:hidden;}
+
+.lang-switcher{position:fixed;top:20px;right:24px;z-index:100;display:flex;border:1px solid #2a2a2a;}
+.lang-btn{background:transparent;border:none;border-right:1px solid #2a2a2a;color:#555;font-family:inherit;font-size:11px;padding:7px 11px;cursor:pointer;letter-spacing:.05em;transition:color .15s,background .15s;}
+.lang-btn:last-child{border-right:none;}
+.lang-btn:hover{color:var(--fg);}
+.lang-btn.active{background:var(--fg);color:#000;}
+
+.header-section{width:min(920px,94vw);margin-bottom:50px;text-align:left;user-select:none;}
+.whoami{font-size:16px;color:var(--dim);margin-bottom:24px;letter-spacing:.05em;}
+.main-quote{font-size:clamp(22px,4.2vw,42px);font-weight:700;line-height:1.38;color:var(--fg);margin:0 0 28px;letter-spacing:-.02em;}
+.sub-tag{font-size:14px;color:var(--dim);letter-spacing:.04em;}
+
+.divider{width:min(920px,94vw);height:1px;background:#1c1c1c;margin-bottom:40px;}
+
+#game{position:relative;width:min(920px,94vw);height:260px;background:#000;border:1px solid #222;overflow:hidden;user-select:none;cursor:default;}
+.line{position:absolute;left:0;right:0;bottom:62px;height:1px;background:#eee;opacity:.86;}
+.hint{position:absolute;left:14px;bottom:12px;color:#555;font-size:12px;letter-spacing:.04em;}
+.counter{position:absolute;right:14px;bottom:12px;color:#555;font-size:12px;letter-spacing:.04em;}
+.entity{position:absolute;white-space:pre;font-size:22px;line-height:1.08;color:#fff;transform:translateZ(0);}
+#cat{left:48px;bottom:64px;font-size:22px;z-index:3;}
+.obstacle{z-index:2;text-align:left;cursor:pointer;}
+.mail{font-size:21px;line-height:1.12;animation:jitter .05s infinite alternate;}
+.rabbit{font-size:23px;line-height:1.04;animation:shake .13s infinite alternate;}
+.human{font-size:24px;line-height:1.03;animation:wave .18s infinite alternate;}
+.car{font-size:21px;line-height:1.02;animation:shake .08s infinite alternate;}
+.home{font-size:26px;z-index:1;opacity:0;transition:opacity 1.2s ease;}
+.home.show{opacity:1;}
+.speech{position:absolute;white-space:pre;font-size:16px;color:#fff;z-index:5;pointer-events:none;opacity:0;animation:speechShake .22s infinite alternate;transition:opacity .9s ease;letter-spacing:.08em;}
+.speech.show{opacity:1;}
+.pop{font-size:24px;animation:pop .38s ease-out forwards;pointer-events:none;}
+.clickHint{position:absolute;white-space:pre;font-size:13px;line-height:1.05;color:#fff;z-index:4;pointer-events:none;text-align:center;animation:hintShake .09s infinite alternate;letter-spacing:.04em;}
+.hit{animation:hit .07s 1;}
+.end{position:absolute;inset:0;display:none;place-items:center;color:#fff;font-size:18px;background:rgba(0,0,0,.45);letter-spacing:.08em;z-index:9;}
+.note{position:absolute;color:#fff;font-size:18px;pointer-events:none;z-index:6;animation:noteFloat 1.1s ease-out forwards;}
+
+@keyframes jitter{from{transform:translate(-4px,-2px) rotate(-4deg)}to{transform:translate(4px,2px) rotate(4deg)}}
+@keyframes shake{from{transform:translateX(-1px)}to{transform:translateX(1px)}}
+@keyframes wave{from{transform:rotate(-1deg)}to{transform:rotate(1deg)}}
+@keyframes hintShake{from{transform:translate(-1px,-1px)}to{transform:translate(1px,1px)}}
+@keyframes pop{0%{opacity:1;transform:scale(.7)}70%{opacity:1;transform:scale(1.25)}100%{opacity:0;transform:scale(1.6)}}
+@keyframes hit{from{filter:invert(1)}to{filter:invert(0)}}
+@keyframes speechShake{from{transform:translateY(-1px)}to{transform:translateY(1px)}}
+@keyframes noteFloat{0%{opacity:1;transform:translate(0,0) rotate(-8deg)}100%{opacity:0;transform:translate(14px,-46px) rotate(12deg)}}
+
+.rpg-section{width:min(920px,94vw);margin-top:64px;}
+.rpg-label{font-size:16px;color:var(--dim);letter-spacing:.05em;margin-bottom:20px;}
+.rpg-layout{display:grid;grid-template-columns:176px 1fr;gap:1px;background:#1a1a1a;border:1px solid #1a1a1a;}
+.char-portrait{background:#000;padding:26px 14px 22px;display:flex;flex-direction:column;align-items:center;text-align:center;}
+.cat-ascii{font-size:17px;line-height:1.32;color:var(--fg);white-space:pre;margin-bottom:16px;}
+.p-divider{width:70%;height:1px;background:#222;margin:0 auto 12px;}
+.p-name{font-size:13px;font-weight:700;color:var(--fg);letter-spacing:.06em;margin-bottom:5px;line-height:1.4;word-break:break-all;}
+.p-class{font-size:9px;color:var(--dim);letter-spacing:.07em;margin-bottom:14px;line-height:1.5;}
+.p-lv{font-size:10px;color:var(--dim);letter-spacing:.09em;margin-bottom:8px;}
+.p-lv span{color:var(--fg);font-size:15px;font-weight:700;}
+.p-exp-label{font-size:9px;color:var(--dim);letter-spacing:.07em;margin-bottom:4px;}
+.p-exp{font-size:11px;letter-spacing:.02em;margin-bottom:12px;}
+.p-status{font-size:9px;color:var(--c-active);letter-spacing:.08em;display:flex;align-items:center;gap:5px;justify-content:center;}
+.status-dot{width:5px;height:5px;border-radius:50%;background:var(--c-active);animation:blink 1.4s ease-in-out infinite;flex-shrink:0;box-shadow:0 0 4px var(--c-active);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+.skills-col{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#1a1a1a;}
+.skill-card{background:#000;padding:18px 16px 20px;cursor:default;transition:background .18s;position:relative;}
+.skill-card:hover{background:#0c0c0c;}
+.skill-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:var(--fg);opacity:0;transition:opacity .18s;}
+.skill-card:hover::before{opacity:1;}
+.skill-top{display:flex;align-items:center;gap:7px;margin-bottom:14px;flex-wrap:wrap;}
+.skill-tag{font-size:10px;font-weight:700;color:#000;padding:2px 6px;letter-spacing:.1em;flex-shrink:0;}
+.skill-tag.t-cha{background:var(--c-prompt);}
+.skill-tag.t-int{background:var(--c-keyword);}
+.skill-tag.t-cre{background:var(--c-string);}
+.skill-name{font-size:12px;font-weight:700;color:var(--fg);flex:1;letter-spacing:-.01em;min-width:0;}
+.skill-rank{font-size:9px;color:var(--c-string);letter-spacing:.08em;white-space:nowrap;}
+.skill-stat-row{display:flex;justify-content:space-between;margin-bottom:5px;}
+.skill-stat-name{font-size:9px;color:var(--dim);letter-spacing:.06em;}
+.skill-stat-val{font-size:9px;color:var(--fg);letter-spacing:.04em;}
+.skill-bar{font-size:11px;line-height:1;overflow:hidden;white-space:nowrap;margin-bottom:13px;}
+.bar-fill{color:var(--fg);}
+.bar-empty{color:#252525;}
+.skill-desc{font-size:10px;color:#555;line-height:1.8;border-top:1px solid #111;padding-top:11px;}
+.skill-desc-text{display:block;margin-bottom:7px;}
+.skill-keyword{display:inline-block;font-size:9px;color:var(--dim);border:1px solid #222;padding:1px 5px;margin:2px 2px 0 0;letter-spacing:.04em;}
+
+/* ── CAREER SELECT ── */
+.career-section{width:min(920px,94vw);margin-top:64px;}
+.career-label{font-size:16px;color:var(--dim);letter-spacing:.05em;margin-bottom:20px;}
+.career-card{border:1px solid #1a1a1a;background:#000;}
+.career-top{display:grid;grid-template-columns:84px 1fr 84px;align-items:center;padding:32px 0 8px;user-select:none;}
+.career-arrow-wrap{text-align:center;}
+.career-arrow{background:transparent;border:1px solid #2a2a2a;width:52px;height:52px;display:flex;align-items:center;justify-content:center;color:var(--c-prompt);font-family:inherit;font-size:22px;font-weight:700;cursor:pointer;margin:0 auto 8px;padding:0;transition:all .18s;}
+.career-arrow:hover{border-color:var(--fg);color:var(--fg);background:#0a0a0a;}
+.career-arrow:active{transform:scale(.94);}
+.career-arrow-label{font-size:9px;color:var(--dim);letter-spacing:.14em;}
+.career-stage{text-align:center;transition:opacity .22s ease;}
+.career-stage.fading{opacity:0;}
+.career-cat{font-size:18px;line-height:1.35;color:var(--fg);white-space:pre;margin:0 0 22px;letter-spacing:.04em;display:inline-block;text-align:left;}
+.career-title{font-size:18px;font-weight:700;color:var(--fg);margin-bottom:6px;letter-spacing:-.01em;}
+.career-period{font-size:11px;color:var(--c-string);letter-spacing:.08em;margin-bottom:4px;}
+.career-location{font-size:11px;color:#444;letter-spacing:.05em;}
+
+.career-dots{display:flex;justify-content:center;gap:10px;padding:18px 0 4px;}
+.career-dot{width:8px;height:8px;border-radius:50%;border:1px solid #444;background:transparent;cursor:pointer;padding:0;transition:background .18s,border-color .18s;}
+.career-dot.active{background:var(--fg);border-color:var(--fg);}
+.career-dot:hover{border-color:var(--fg);}
+
+.career-body{border-top:1px solid #1a1a1a;padding:28px 36px 32px;transition:opacity .22s ease;}
+.career-body.fading{opacity:0;}
+.career-body-section{margin-bottom:22px;}
+.career-body-section:last-child{margin-bottom:0;}
+.body-label{font-size:10px;color:var(--dim);letter-spacing:.14em;margin-bottom:10px;font-weight:700;}
+.body-label::before{content:'▸ ';color:var(--c-prompt);}
+.career-about{font-size:13px;color:#bbb;line-height:1.85;margin:0;letter-spacing:.01em;}
+.career-achievements{margin:0;padding:0;list-style:none;}
+.career-achievements li{font-size:12px;color:#aaa;line-height:1.75;padding:5px 0 5px 18px;position:relative;letter-spacing:.01em;}
+.career-achievements li::before{content:'▸';position:absolute;left:0;color:var(--c-prompt);font-size:10px;top:7px;}
+.career-tags{display:flex;flex-wrap:wrap;gap:6px;}
+.career-tag{display:inline-block;font-size:10px;color:var(--dim);border:1px solid #2a2a2a;padding:3px 8px;letter-spacing:.05em;}
+
+@media(max-width:680px){
+  .rpg-layout{grid-template-columns:1fr;}
+  .char-portrait{flex-direction:row;align-items:flex-start;flex-wrap:wrap;gap:16px;padding:20px;}
+  .skills-col{grid-template-columns:1fr;}
+  .career-body{padding:22px 20px 26px;}
+  .career-top{grid-template-columns:64px 1fr 64px;}
+  .career-arrow{width:44px;height:44px;font-size:18px;}
+}
+</style>
+</head>
+<body>
+
+<nav class="lang-switcher" aria-label="Language switcher">
+  <button class="lang-btn active" data-lang="en">EN</button>
+  <button class="lang-btn" data-lang="ja">日本語</button>
+  <button class="lang-btn" data-lang="ko">한국어</button>
+  <button class="lang-btn" data-lang="zh">中文</button>
+</nav>
+
+<header class="header-section">
+  <div class="whoami" data-i18n="whoami"></div>
+  <h1 class="main-quote" data-i18n="quote"></h1>
+  <div class="sub-tag" data-i18n="subtag"></div>
+</header>
+
+<div class="divider"></div>
+
+<main id="game" aria-label="ASCII cat runner game">
+  <div class="line"></div>
+  <pre id="cat" class="entity"> /\_/\
+( •.• )
+ / ></pre>
+  <pre id="homeFish" class="entity home">><)))°></pre>
+  <div id="homeSpeech" class="speech">back home...</div>
+  <div id="end" class="end"></div>
+  <div class="hint">click each thing 10x · SPACE / ↑ jump · R reset</div>
+  <div id="counter" class="counter"></div>
+</main>
+
+<div class="divider" style="margin-top:40px"></div>
+
+<!-- ═══ RPG STATUS ═══ -->
+<section class="rpg-section">
+  <div class="rpg-label" data-i18n="statusLabel"></div>
+  <div class="rpg-layout">
+
+    <div class="char-portrait">
+      <pre class="cat-ascii"> /\_/\
+( •.• )
+ / ></pre>
+      <div class="p-divider"></div>
+      <div class="p-name" data-i18n="charName"></div>
+      <div class="p-class" data-i18n="charClass"></div>
+      <div class="p-divider"></div>
+      <div class="p-lv">LV. <span>??</span></div>
+      <div class="p-exp-label" data-i18n="expLabel">EXP</div>
+      <div class="p-exp"><span class="bar-fill">████████████</span><span class="bar-empty">░░░░</span></div>
+      <div class="p-status"><span class="status-dot"></span><span data-i18n="activeLabel"></span></div>
+    </div>
+
+    <div class="skills-col" id="skillsGrid">
+      <div class="skill-card">
+        <div class="skill-top"><span class="skill-tag t-cha">CHA</span><span class="skill-name" data-sk="0-name"></span><span class="skill-rank" data-sk="0-rank"></span></div>
+        <div class="skill-stat-row"><span class="skill-stat-name" data-sk="0-stat"></span><span class="skill-stat-val">92 / 100</span></div>
+        <div class="skill-bar" id="bar-0"><span class="bar-fill">████████████████████</span><span class="bar-empty">████████</span></div>
+        <div class="skill-desc"><span class="skill-desc-text" data-sk="0-desc"></span>
+          <span class="skill-keyword">中文</span><span class="skill-keyword">日本語</span><span class="skill-keyword">한국어</span><span class="skill-keyword">English</span></div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-top"><span class="skill-tag t-int">INT</span><span class="skill-name" data-sk="1-name"></span><span class="skill-rank" data-sk="1-rank"></span></div>
+        <div class="skill-stat-row"><span class="skill-stat-name" data-sk="1-stat"></span><span class="skill-stat-val">94 / 100</span></div>
+        <div class="skill-bar" id="bar-1"><span class="bar-fill">█████████████████████</span><span class="bar-empty">███████</span></div>
+        <div class="skill-desc"><span class="skill-desc-text" data-sk="1-desc"></span>
+          <span class="skill-keyword">AI native</span><span class="skill-keyword">prompt-as-craft</span><span class="skill-keyword">non-engineer</span></div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-top"><span class="skill-tag t-cre">CRE</span><span class="skill-name" data-sk="2-name"></span><span class="skill-rank" data-sk="2-rank"></span></div>
+        <div class="skill-stat-row"><span class="skill-stat-name" data-sk="2-stat"></span><span class="skill-stat-val">96 / 100</span></div>
+        <div class="skill-bar" id="bar-2"><span class="bar-fill">█████████████████████</span><span class="bar-empty">███████</span></div>
+        <div class="skill-desc"><span class="skill-desc-text" data-sk="2-desc"></span>
+          <span class="skill-keyword">write</span><span class="skill-keyword">build</span><span class="skill-keyword">ship</span></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ CAREER SELECT ═══ -->
+<section class="career-section">
+  <div class="career-label" data-i18n="careerLabel"></div>
+  <div class="career-card">
+    <div class="career-top">
+      <div class="career-arrow-wrap">
+        <button class="career-arrow" id="careerPrev" aria-label="Previous">←</button>
+        <div class="career-arrow-label">PREV</div>
+      </div>
+      <div class="career-stage" id="careerStage">
+        <pre class="career-cat" id="careerCat"></pre>
+        <div class="career-title" id="careerTitle"></div>
+        <div class="career-period" id="careerPeriod"></div>
+        <div class="career-location" id="careerLocation"></div>
+      </div>
+      <div class="career-arrow-wrap">
+        <button class="career-arrow" id="careerNext" aria-label="Next">→</button>
+        <div class="career-arrow-label">NEXT</div>
+      </div>
+    </div>
+
+    <div class="career-dots" id="careerDots"></div>
+
+    <div class="career-body" id="careerBody">
+      <div class="career-body-section">
+        <div class="body-label" data-i18n="aboutLabel"></div>
+        <p class="career-about" id="careerAbout"></p>
+      </div>
+      <div class="career-body-section">
+        <div class="body-label" data-i18n="achievementsLabel"></div>
+        <ul class="career-achievements" id="careerAchievements"></ul>
+      </div>
+      <div class="career-body-section">
+        <div class="body-label" data-i18n="tagsLabel"></div>
+        <div class="career-tags" id="careerTags"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(() => {
+
+/* ════════════════════════════════════════════════════════════
+   ✏️  CAREER DATA — Replace [TODO] fields with real content
+   ════════════════════════════════════════════════════════════ */
+const CAREERS = [
+  {
+    id: 'localizer',
+    cat:
+`  ✨  /\\_/\\   ♥
+    ( ◕‿◕ )
+     /[📱]>
+      /  \\
+   ♫  ♪  ♫`,
+    content: {
+      en: {
+        title: 'The Localizer',
+        period: '2023.01 — 2023.09',
+        location: 'NetEase',
+        about: 'The first quest — carrying stories born in Chinese into Japanese and English worlds. Translated character "moe" across cultures, designed brand tone & manner, and made overseas players feel "this story is mine."',
+        achievements: [
+          '🎬 Short-Form Storytelling — Edited & directed brand world-building through short-form video',
+          '🌏 Style-Coherent Localization — Chinese ⇄ Japanese ⇄ English, translating culture with a unified worldview'
+        ],
+        tags: ['SNS', 'Content Strategy', 'Localization', 'Brand Voice']
+      },
+      ja: {
+        title: '物語を運ぶ者',
+        period: '2023.01 — 2023.09',
+        location: 'NetEase（網易）',
+        about: '中国語で生まれた物語を、日本語と英語の世界へ届けた最初の冒険。キャラクターの「萌え」を異文化に翻訳し、ブランドのトーン＆マナーを設計しながら、海外のプレイヤーに「これ、自分の物語だ」と感じさせた。',
+        achievements: [
+          '🎬 Short-Form Storytelling — 短尺動画でブランドの世界観を編集・演出',
+          '🌏 Style-Coherent Localization — 中⇄日⇄英、一貫した世界観で文化を翻訳'
+        ],
+        tags: ['SNS', 'コンテンツ戦略', 'ローカライズ', 'ブランドボイス']
+      },
+      ko: {
+        title: '이야기를 옮기는 자',
+        period: '2023.01 — 2023.09',
+        location: 'NetEase (网易)',
+        about: '중국어로 태어난 이야기를 일본어와 영어의 세계로 가져간 첫 모험. 캐릭터의 "모에"를 다른 문화로 번역하고, 브랜드 톤 앤 매너를 설계하면서 해외 플레이어가 "이건 내 이야기"라고 느끼게 했다.',
+        achievements: [
+          '🎬 Short-Form Storytelling — 짧은 영상으로 브랜드 세계관을 편집·연출',
+          '🌏 Style-Coherent Localization — 중⇄일⇄영, 일관된 세계관으로 문화를 번역'
+        ],
+        tags: ['SNS', '콘텐츠 전략', '로컬라이제이션', '브랜드 보이스']
+      },
+      zh: {
+        title: '故事的搬运者',
+        period: '2023.01 — 2023.09',
+        location: '网易 NetEase',
+        about: '把中文世界诞生的故事，送进日语和英语世界的第一次冒险。把角色的「萌」翻译给异文化，同时设计品牌的语气与调性，让海外玩家感到「这就是我的故事」。',
+        achievements: [
+          '🎬 短视频叙事 — 用短视频编辑并演绎品牌的世界观',
+          '🌏 风格一致的本地化 — 中⇄日⇄英，用统一的世界观翻译文化'
+        ],
+        tags: ['SNS', '内容策略', '本地化', '品牌调性']
+      }
+    }
+  },
+  {
+    id: 'negotiator',
+    cat:
+`     /\\_/\\
+    ( •.• )
+    /[≡▼≡]\\
+      |◆|
+      / \\
+    [💼] $`,
+    content: {
+      en: {
+        title: 'The Frontline Negotiator',
+        period: '2024.12 — 2025.12',
+        location: 'Suruga Production Platform — Optical Instruments Div.',
+        about: 'Armed with precision optical metrology, the phase of dialogue with Japan\'s top-tier engineers — Sony, Nikon, Canon, Hamamatsu Photonics. The first moment of seeing the "distortions in the system" on the front line.',
+        achievements: [
+          '🎯 Technical Proposal — Problem-solving proposals to engineering teams at major manufacturers',
+          '👁️ Problem Detection — A front-line eye that sees through siloed expertise and inefficiency'
+        ],
+        tags: ['B2B', 'Technical Sales', 'Optical Metrology', 'Negotiation']
+      },
+      ja: {
+        title: '最前線の交渉者',
+        period: '2024.12 — 2025.12',
+        location: '駿河生産プラットフォーム 光学機器事業部',
+        about: '精密光学計測機器を武器に、Sony・Nikon・キヤノン・浜松ホトニクス——日本最高峰の技術者たちと対話したフェーズ。ここで初めて、現場の「仕組みの歪み」に気づく。',
+        achievements: [
+          '🎯 Technical Proposal — 大手メーカー技術部門への課題解決型提案',
+          '👁️ Problem Detection — 属人化・非効率を見抜く現場の眼'
+        ],
+        tags: ['B2B', '技術営業', '光学計測', '交渉']
+      },
+      ko: {
+        title: '최전선의 협상가',
+        period: '2024.12 — 2025.12',
+        location: '스루가생산플랫폼 광학기기 사업부',
+        about: '정밀 광학 계측기를 무기로, Sony·Nikon·Canon·하마마쓰포토닉스——일본 최고 수준의 엔지니어들과 대화한 단계. 여기서 처음으로 현장의 "구조적 왜곡"을 알아챘다.',
+        achievements: [
+          '🎯 Technical Proposal — 대기업 기술 부서를 향한 과제 해결형 제안',
+          '👁️ Problem Detection — 속인화·비효율을 꿰뚫어 보는 현장의 눈'
+        ],
+        tags: ['B2B', '기술 영업', '광학 계측', '협상']
+      },
+      zh: {
+        title: '前线交涉者',
+        period: '2024.12 — 2025.12',
+        location: '骏河生产平台 光学仪器事业部',
+        about: '以精密光学计测仪器为武器，与索尼、尼康、佳能、滨松光子学——日本顶尖的技术者们对话的阶段。在这里第一次意识到现场的「机制扭曲」。',
+        achievements: [
+          '🎯 技术提案 — 面向大型制造商技术部门的课题解决型提案',
+          '👁️ 问题洞察 — 看穿属人化与低效率的现场之眼'
+        ],
+        tags: ['B2B', '技术销售', '光学计测', '商务谈判']
+      }
+    }
+  },
+  {
+    id: 'architect',
+    cat:
+`   ✈ - - - - -
+       /\\_/\\
+      ( •.• )
+       /[🧳]
+        /\\
+        🌐`,
+    content: {
+      en: {
+        title: 'The AI Architect [CURRENT]',
+        period: '2026.01 — Now',
+        location: 'Suruga Production Platform — G-Procurement Tech',
+        about: 'Into the core of global procurement, spanning production sites across Japan, China, and Vietnam. No formal programming education. Yet armed with AI, stepping into territories thought to be "experts only" — and reinventing operations from the ground up.',
+        achievements: [
+          '⚡ AI-Powered Automation — In-house tools cutting routine work by 72%',
+          '🧠 Knowledge Assetization — Turning siloed expertise into a map anyone can follow'
+        ],
+        tags: ['AI Native', 'Automation', 'Global Procurement', 'Knowledge Systems']
+      },
+      ja: {
+        title: '仕組みを作り変える者 [CURRENT]',
+        period: '2026.01 — 現在',
+        location: '駿河生産プラットフォーム G調達技術部',
+        about: '日・中・越3カ国の生産拠点を横断するグローバル調達の中枢へ。プログラミングの専門教育は受けていない。それでもAIを武器に、「専門家じゃないとできない」と思われていた領域に踏み込み、業務を根本から作り変える。',
+        achievements: [
+          '⚡ AI-Powered Automation — 独力で開発したツールで定型業務を72%削減',
+          '🧠 Knowledge Assetization — 属人化ナレッジを誰でも辿れる地図へ'
+        ],
+        tags: ['AIネイティブ', '自動化', 'グローバル調達', 'ナレッジ基盤']
+      },
+      ko: {
+        title: '구조를 다시 짜는 자 [CURRENT]',
+        period: '2026.01 — 현재',
+        location: '스루가생산플랫폼 G조달기술부',
+        about: '일·중·베트남 3개국 생산 거점을 가로지르는 글로벌 조달의 중추로. 프로그래밍 전문 교육은 받지 않았다. 그래도 AI를 무기로, "전문가가 아니면 할 수 없다"고 여겨졌던 영역에 발을 들이고, 업무를 근본부터 다시 만든다.',
+        achievements: [
+          '⚡ AI-Powered Automation — 독자 개발 도구로 정형 업무 72% 절감',
+          '🧠 Knowledge Assetization — 속인화된 노하우를 누구나 따라갈 수 있는 지도로'
+        ],
+        tags: ['AI 네이티브', '자동화', '글로벌 조달', '지식 시스템']
+      },
+      zh: {
+        title: '重塑机制者 [CURRENT]',
+        period: '2026.01 — 至今',
+        location: '骏河生产平台 G调达技术部',
+        about: '走进横跨日·中·越三国生产据点的全球采购中枢。没有受过编程的专业教育。即便如此，以AI为武器，踏进被认为「非专家做不到」的领域，从根本上重塑业务。',
+        achievements: [
+          '⚡ AI 驱动自动化 — 独立开发的工具将常规业务削减 72%',
+          '🧠 知识资产化 — 把属人化的知识变成谁都能追溯的地图'
+        ],
+        tags: ['AI Native', '自动化', '全球采购', '知识体系']
+      }
+    }
+  }
+];
+
+/* ──────── i18n labels ──────── */
+const T = {
+  zh:{whoami:'> whoami',quote:'把「没做过」变成\n「看我怎么做出来的」\n的创造者。',subtag:'— 以AI为引擎，跨越语言与文化边界。',
+      statusLabel:'> status',charName:'杜文俏',charClass:'CLASS: 桥梁构建者',expLabel:'EXP',activeLabel:'ACTIVE',
+      careerLabel:'> career.select',aboutLabel:'关于',achievementsLabel:'核心成就',tagsLabel:'技能 / 工具',
+      skills:[
+        {name:'跨文化沟通',rank:'S RANK',stat:'CHARISMA',desc:'不只是翻译语言——是翻译思维方式。在不同文化间传递一致的声音，让故事在落地的每个地方都像本地诞生的。'},
+        {name:'AI驱动执行力',rank:'S RANK',stat:'INTELLIGENCE',desc:'不是工程师——却造出工程师级别的工具。定义问题、用AI构建方案、在别人开始之前就部署完成。'},
+        {name:'从零到一的构建力',rank:'S RANK',stat:'CREATIVITY',desc:'把「没人做过」变成「已经上线了」。SNS账号、自动化工具、知识体系——全都从零搭起。'}]},
+  ja:{whoami:'> whoami',quote:'「やったことない」を\n「こう作った」に\n変えるクリエイター。',subtag:'— AIを駆使し、言語と文化を越えて。',
+      statusLabel:'> ステータス',charName:'ト　ブンチャオ',charClass:'CLASS: ブリッジビルダー',expLabel:'EXP',activeLabel:'ACTIVE',
+      careerLabel:'> キャリア選択',aboutLabel:'人物像',achievementsLabel:'主な実績',tagsLabel:'スキル / ツール',
+      skills:[
+        {name:'多文化コミュ力',rank:'Sランク',stat:'CHARISMA',desc:'言語を訳すだけでなく、思考様式ごと訳す。文化をまたいで一貫した声を運び、届いた先で「これは自分の物語」と感じさせる。'},
+        {name:'AI駆動実行力',rank:'Sランク',stat:'INTELLIGENCE',desc:'エンジニアではない——それでもエンジニア級のツールを世に出す。問題を定義し、AIで解を組み立て、誰よりも早く動かす。'},
+        {name:'ゼロイチ構築力',rank:'Sランク',stat:'CREATIVITY',desc:'「誰もやったことない」を「もうリリース済み」に変える。SNSアカウント、自動化ツール、ナレッジ基盤——全部ゼロから作った。'}]},
+  ko:{whoami:'> whoami',quote:'"해본 적 없다"를\n"이렇게 만들었다"로\n바꾸는 크리에이터.',subtag:'— AI로 구동되며, 언어와 문화를 넘어서.',
+      statusLabel:'> 스테이터스',charName:'두문정',charClass:'CLASS: 브릿지 빌더',expLabel:'EXP',activeLabel:'ACTIVE',
+      careerLabel:'> 커리어 선택',aboutLabel:'소개',achievementsLabel:'주요 성과',tagsLabel:'스킬 / 도구',
+      skills:[
+        {name:'다문화 소통력',rank:'S 랭크',stat:'CHARISMA',desc:'언어를 번역하는 게 아니라 사고방식을 번역한다. 문화를 가로질러 일관된 목소리를 전하고, 도착한 곳마다 "내 이야기"처럼 느끼게 한다.'},
+        {name:'AI 기반 실행력',rank:'S 랭크',stat:'INTELLIGENCE',desc:'엔지니어가 아니다——그런데도 엔지니어급 도구를 만들어 낸다. 문제를 정의하고, AI로 해법을 만들고, 누구보다 먼저 배포한다.'},
+        {name:'제로투원 구축력',rank:'S 랭크',stat:'CREATIVITY',desc:'"아무도 안 해봤다"를 "이미 배포했다"로 바꾼다. SNS 계정·자동화 도구·지식 시스템——전부 제로에서 만들었다.'}]},
+  en:{whoami:'> whoami',quote:'A creator who turns\n"I\'ve never done this" into\n"Here\'s how I built it."',subtag:'— powered by AI, across languages and cultures.',
+      statusLabel:'> status',charName:'Wenqiao DU',charClass:'CLASS: Bridge Builder',expLabel:'EXP',activeLabel:'ACTIVE',
+      careerLabel:'> career.select',aboutLabel:'ABOUT',achievementsLabel:'KEY ACHIEVEMENTS',tagsLabel:'SKILLS / TOOLS',
+      skills:[
+        {name:'Cross-cultural Comms',rank:'S RANK',stat:'CHARISMA',desc:'Not just translating language — translating mindsets. Carries a unified voice across cultures, so the story feels native everywhere it lands.'},
+        {name:'AI-Powered Execution',rank:'S RANK',stat:'INTELLIGENCE',desc:'Not an engineer — but ships engineer-grade tools. Defines the problem, builds the solution with AI, deploys it before anyone else starts.'},
+        {name:'Zero-to-One Builder',rank:'S RANK',stat:'CREATIVITY',desc:'Turns "no one\'s done this" into "already shipped." SNS accounts, automation tools, knowledge systems — all built from scratch.'}]}
+};
+
+let currentLang = 'en';
+let careerIdx = 0;
+
+/* Color the "> command" prompt syntax */
+function colorPrompt(text){
+  if(text.startsWith('> ')){
+    return `<span class="c-prompt">&gt;</span> <span class="c-keyword">${text.substring(2)}</span>`;
+  }
+  return text;
+}
+
+function setLang(lang){
+  currentLang = lang;
+  const t = T[lang];
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
+  const set = (sel,val,html)=>{const el=document.querySelector(sel);if(el){if(html)el.innerHTML=val;else el.textContent=val;}};
+  set('[data-i18n="whoami"]',colorPrompt(t.whoami),true);
+  set('[data-i18n="quote"]',t.quote.replace(/\n/g,'<br>'),true);
+  set('[data-i18n="subtag"]',t.subtag);
+  set('[data-i18n="statusLabel"]',colorPrompt(t.statusLabel),true);
+  set('[data-i18n="charName"]',t.charName);
+  set('[data-i18n="charClass"]',t.charClass);
+  set('[data-i18n="expLabel"]',t.expLabel);
+  set('[data-i18n="activeLabel"]',t.activeLabel);
+  set('[data-i18n="careerLabel"]',colorPrompt(t.careerLabel),true);
+  set('[data-i18n="aboutLabel"]',t.aboutLabel);
+  set('[data-i18n="achievementsLabel"]',t.achievementsLabel);
+  set('[data-i18n="tagsLabel"]',t.tagsLabel);
+  t.skills.forEach((s,i)=>{
+    set(`[data-sk="${i}-name"]`,s.name);
+    set(`[data-sk="${i}-rank"]`,s.rank);
+    set(`[data-sk="${i}-stat"]`,s.stat);
+    set(`[data-sk="${i}-desc"]`,s.desc);
+  });
+  renderCareer(true);
+}
+
+/* ──────── Career rendering ──────── */
+function renderCareer(skipAnim){
+  const c = CAREERS[careerIdx];
+  const data = c.content[currentLang] || c.content.en;
+  document.getElementById('careerCat').textContent = c.cat;
+  document.getElementById('careerTitle').textContent = data.title;
+  document.getElementById('careerPeriod').textContent = data.period;
+  document.getElementById('careerLocation').textContent = data.location;
+  document.getElementById('careerAbout').textContent = data.about;
+  const ulEl = document.getElementById('careerAchievements');
+  ulEl.innerHTML = data.achievements.map(()=>`<li></li>`).join('');
+  ulEl.querySelectorAll('li').forEach((li,i)=>{li.textContent = data.achievements[i];});
+  const tagEl = document.getElementById('careerTags');
+  tagEl.innerHTML = data.tags.map(()=>'<span class="career-tag"></span>').join('');
+  tagEl.querySelectorAll('.career-tag').forEach((sp,i)=>{sp.textContent = data.tags[i];});
+  const dotsEl = document.getElementById('careerDots');
+  if(!dotsEl.children.length){
+    CAREERS.forEach((_,i)=>{
+      const d = document.createElement('button');
+      d.className='career-dot'+(i===careerIdx?' active':'');
+      d.setAttribute('aria-label','Go to career '+(i+1));
+      d.addEventListener('click',()=>switchCareer(i - careerIdx));
+      dotsEl.appendChild(d);
+    });
+  } else {
+    [...dotsEl.children].forEach((d,i)=>d.classList.toggle('active',i===careerIdx));
+  }
+}
+
+function switchCareer(dir){
+  if(!dir) return;
+  const stage = document.getElementById('careerStage');
+  const body = document.getElementById('careerBody');
+  stage.classList.add('fading'); body.classList.add('fading');
+  setTimeout(()=>{
+    careerIdx = (careerIdx + dir + CAREERS.length*10) % CAREERS.length;
+    renderCareer();
+    requestAnimationFrame(()=>{
+      stage.classList.remove('fading');
+      body.classList.remove('fading');
+    });
+  },220);
+}
+
+document.getElementById('careerPrev').addEventListener('click',()=>switchCareer(-1));
+document.getElementById('careerNext').addEventListener('click',()=>switchCareer(1));
+
+window.addEventListener('keydown',(e)=>{
+  if(e.code==='ArrowLeft'||e.code==='ArrowRight'){
+    const rect = document.querySelector('.career-section').getBoundingClientRect();
+    if(rect.top < window.innerHeight && rect.bottom > 0){
+      switchCareer(e.code==='ArrowLeft'?-1:1);
+    }
+  }
+});
+
+let touchStartX = 0;
+const cardEl = document.querySelector('.career-card');
+cardEl.addEventListener('touchstart',(e)=>{touchStartX = e.touches[0].clientX;},{passive:true});
+cardEl.addEventListener('touchend',(e)=>{
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if(Math.abs(dx) > 50) switchCareer(dx < 0 ? 1 : -1);
+});
+
+document.querySelectorAll('.lang-btn').forEach(b=>{
+  b.addEventListener('click',()=>setLang(b.dataset.lang));
+});
+setLang('en');
+
+/* ──────── Skill bar animation ──────── */
+const barDefs=[{id:'bar-0',fill:20,total:28},{id:'bar-1',fill:21,total:28},{id:'bar-2',fill:22,total:28}];
+let barAnimated=false;
+function animateBars(){
+  if(barAnimated)return; barAnimated=true;
+  barDefs.forEach(({id,fill,total})=>{
+    const el=document.getElementById(id); if(!el)return;
+    const f=el.querySelector('.bar-fill'), e=el.querySelector('.bar-empty');
+    f.textContent=''; e.textContent='░'.repeat(total);
+    let i=0; const iv=setInterval(()=>{if(i>fill){clearInterval(iv);return;}f.textContent='█'.repeat(i);e.textContent='░'.repeat(total-i);i++;},40);
+  });
+}
+const obs=new IntersectionObserver(en=>{if(en[0].isIntersecting)animateBars();},{threshold:.3});
+const sg=document.getElementById('skillsGrid'); if(sg)obs.observe(sg);
+
+/* ──────── Game ──────── */
+const game=document.getElementById('game');
+if(window.matchMedia('(pointer: coarse)').matches||window.innerWidth<600){
+  game.innerHTML='<div style="color:#fff;display:grid;place-items:center;height:100%;font-size:18px;letter-spacing:.08em;text-align:center;line-height:1.8">ฅ^•ﻌ•^ฅ<br><span style="font-size:13px;color:#aaa">open on desktop for a surprise</span></div>';
+  return;
+}
+const cat=document.getElementById('cat'),end=document.getElementById('end'),counter=document.getElementById('counter'),homeFish=document.getElementById('homeFish'),homeSpeech=document.getElementById('homeSpeech');
+const CAT_NORMAL=' /\\_/\\\n( •.• )\n / >',CAT_DIZZY=' /\\_/\\\n( x.x )\n / >💫',CAT_HAPPY=' /\\_/\\\n( ^.^ )\n / >🐟';
+const specs=[{type:'rabbit',html:' (\\_/)\n(◣_◢)\n \\vv/',speed:2.38,bottom:66,gap:940},{type:'car',html:' __/[]\\__\n  O----O',speed:3.18,bottom:68,gap:760},{type:'mail',html:'[MAIL]\n !!!\n RE:',speed:2.05,bottom:70,gap:620},{type:'human',html:'  ♥\n \\o/  pspsps~\n  |\n / \\',speed:2.18,bottom:64,gap:0}];
+let frame=0,current=null,clickHint=null,index=-1,running=true,catY=64,catX=48,vy=0,jumping=false,dizzy=false,goingHome=false,goalReached=false,nextTimer=null,finishX=760;
+function setFP(){finishX=Math.max(680,game.clientWidth-130);homeFish.style.left=finishX+'px';homeFish.style.bottom='76px';}
+function resetGame(){document.querySelectorAll('.obstacle,.pop,.clickHint,.note').forEach(e=>e.remove());clearTimeout(nextTimer);frame=0;index=-1;current=null;clickHint=null;running=true;catY=64;catX=48;vy=0;jumping=false;dizzy=false;goingHome=false;goalReached=false;cat.textContent=CAT_NORMAL;cat.style.bottom=catY+'px';cat.style.left=catX+'px';end.style.display='none';counter.textContent='';homeFish.classList.remove('show');homeSpeech.classList.remove('show');setFP();scheduleNext(520);}
+function scheduleNext(d){clearTimeout(nextTimer);nextTimer=setTimeout(spawnNext,d);}
+function spawnNext(){if(!running||dizzy||goalReached||goingHome)return;index+=1;if(index>=specs.length){startGoingHome();return;}const spec=specs[index];const el=document.createElement('pre');el.className='entity obstacle '+spec.type;el.textContent=spec.html;el.dataset.type=spec.type;el.dataset.x=String(game.clientWidth+44);el.dataset.speed=String(spec.speed);el.dataset.clicksLeft='10';el.dataset.gap=String(spec.gap);el.style.left=(game.clientWidth+44)+'px';el.style.bottom=spec.bottom+'px';game.appendChild(el);current=el;clickHint=document.createElement('pre');clickHint.className='clickHint';clickHint.textContent='↓\nclick that';game.appendChild(clickHint);updateCH();updateCtr(el);el.addEventListener('click',(ev)=>{ev.stopPropagation();const left=Math.max(0,Number(el.dataset.clicksLeft)-1);el.dataset.clicksLeft=String(left);el.classList.remove('hit');void el.offsetWidth;el.classList.add('hit');updateCtr(el);if(left<=0){explode(el);removeCH();current=null;counter.textContent='';if(index>=specs.length-1)startGoingHome();else scheduleNext(Number(spec.gap));}});}
+function updateCH(){if(!current||!clickHint)return;const x=Number(current.dataset.x);clickHint.style.left=(x+6)+'px';clickHint.style.bottom=(parseFloat(current.style.bottom)+current.offsetHeight+26)+'px';}
+function removeCH(){if(clickHint)clickHint.remove();clickHint=null;}
+function updateCtr(el){if(!el){counter.textContent='';return;}counter.textContent=`${el.dataset.type.toUpperCase()} ${10-Number(el.dataset.clicksLeft)}/10`;}
+function explode(el){const r=el.getBoundingClientRect(),gr=game.getBoundingClientRect(),pop=document.createElement('pre');pop.className='entity pop';pop.textContent='* POP *';pop.style.left=(r.left-gr.left+r.width/2-42)+'px';pop.style.top=(r.top-gr.top+r.height/2-14)+'px';game.appendChild(pop);el.remove();setTimeout(()=>pop.remove(),450);}
+function jump(){if(dizzy||goalReached)return;if(!jumping){jumping=true;vy=9.2;}}
+function spawnNote(){const n=document.createElement('div');n.className='note';n.textContent=Math.random()<.5?'♪':'♫';n.style.left=(catX+18+(Math.random()*16-8))+'px';n.style.bottom=(catY+56+(Math.random()*8))+'px';game.appendChild(n);setTimeout(()=>n.remove(),1100);}
+function rectsOverlap(a,b){return!(a.right<b.left||a.left>b.right||a.bottom<b.top||a.top>b.bottom);}
+function faint(){if(dizzy||goalReached)return;dizzy=true;running=false;goingHome=false;clearTimeout(nextTimer);removeCH();cat.textContent=CAT_DIZZY;counter.textContent='DIZZY';setTimeout(resetGame,1200);}
+function startGoingHome(){if(goalReached||dizzy)return;clearTimeout(nextTimer);removeCH();current=null;goingHome=true;running=true;counter.textContent='';setTimeout(()=>homeFish.classList.add('show'),360);}
+function win(){goalReached=true;running=false;goingHome=false;clearTimeout(nextTimer);cat.textContent=CAT_HAPPY;counter.textContent='';posSpeech();homeSpeech.classList.add('show');}
+function posSpeech(){const cr=cat.getBoundingClientRect(),gr=game.getBoundingClientRect();homeSpeech.style.left=(cr.left-gr.left-18)+'px';homeSpeech.style.bottom=(parseFloat(cat.style.bottom||'64')+cat.offsetHeight+16)+'px';}
+function loop(){frame++;if(jumping){catY+=vy;vy-=.55;if(catY<=64){catY=64;vy=0;jumping=false;}cat.style.bottom=catY+'px';}if(running&&current){let x=Number(current.dataset.x)-Number(current.dataset.speed);current.dataset.x=String(x);current.style.left=x+'px';updateCH();if(rectsOverlap(cat.getBoundingClientRect(),current.getBoundingClientRect()))faint();if(x<-180){const gap=Number(current.dataset.gap||700);current.remove();removeCH();current=null;counter.textContent='';if(index>=specs.length-1)startGoingHome();else scheduleNext(gap);}}if(goingHome&&!goalReached){catX+=1.8+Math.min(2.6,(catX-48)*.005);cat.style.left=catX+'px';if(!jumping&&frame%26===0)jump();if(frame%11===0)spawnNote();posSpeech();if(catX>=finishX-90)win();}requestAnimationFrame(loop);}
+window.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();jump();}if(e.key.toLowerCase()==='r')resetGame();});
+game.addEventListener('click',jump);
+window.addEventListener('resize',setFP);
+resetGame();loop();
+
+})();
+</script>
+</body>
+</html>
