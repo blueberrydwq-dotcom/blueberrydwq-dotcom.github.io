@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>A Creator</title>
+<style>
+:root{
+  --bg:#000;--fg:#f2f2f2;--dim:#666;
+  --c-prompt:#79c0ff;    /* terminal blue — for > prompts */
+  --c-keyword:#98c379;   /* soft green — for command names */
+  --c-string:#e5c07b;    /* amber — for ranks/values */
+  --c-accent:#e06c75;    /* coral — for accents */
+  --c-active:#7ee787;    /* mint — for ACTIVE status */
+}
+.c-prompt{color:var(--c-prompt);}
+.c-keyword{color:var(--c-keyword);}
+.c-string{color:var(--c-string);}
+.c-active{color:var(--c-active);}
+
+*{box-sizing:border-box;}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);}
+body{display:flex;flex-direction:column;align-items:center;font-family:"IBM Plex Mono","Courier New",monospace;padding:40px 20px 100px;overflow-x:hidden;}
+
+.lang-switcher{position:fixed;top:20px;right:24px;z-index:100;display:flex;border:1px solid #2a2a2a;}
+.lang-btn{background:transparent;border:none;border-right:1px solid #2a2a2a;color:#555;font-family:inherit;font-size:13px;padding:7px 11px;cursor:pointer;letter-spacing:.05em;transition:color .15s,background .15s;}
+.lang-btn:last-child{border-right:none;}
+.lang-btn:hover{color:var(--fg);}
+.lang-btn.active{background:var(--fg);color:#000;}
+
+.header-section{width:min(920px,94vw);margin-bottom:50px;text-align:left;user-select:none;}
+.whoami{font-size:16px;color:var(--dim);margin-bottom:24px;letter-spacing:.05em;}
+.main-quote{font-size:clamp(22px,4.2vw,42px);font-weight:700;line-height:1.38;color:var(--fg);margin:0 0 28px;letter-spacing:-.02em;}
+.sub-tag{font-size:14px;color:var(--dim);letter-spacing:.04em;}
+
+.divider{width:min(920px,94vw);height:1px;background:#1c1c1c;margin-bottom:40px;}
+
+#game{position:relative;width:min(920px,94vw);height:260px;background:#000;border:1px solid #222;overflow:hidden;user-select:none;cursor:default;}
+.line{position:absolute;left:0;right:0;bottom:62px;height:1px;background:#eee;opacity:.86;}
+.hint{position:absolute;left:14px;bottom:12px;color:#555;font-size:12px;letter-spacing:.04em;}
+.counter{position:absolute;right:14px;bottom:12px;color:#555;font-size:12px;letter-spacing:.04em;}
+.entity{position:absolute;white-space:pre;font-size:22px;line-height:1.08;color:#fff;transform:translateZ(0);}
+#cat{left:48px;bottom:64px;font-size:22px;z-index:3;}
+.obstacle{z-index:2;text-align:left;cursor:pointer;}
+.mail{font-size:21px;line-height:1.12;animation:jitter .05s infinite alternate;}
+.rabbit{font-size:23px;line-height:1.04;animation:shake .13s infinite alternate;}
+.human{font-size:24px;line-height:1.03;animation:wave .18s infinite alternate;}
+.car{font-size:21px;line-height:1.02;animation:shake .08s infinite alternate;}
+.home{font-size:26px;z-index:1;opacity:0;transition:opacity 1.2s ease;}
+.home.show{opacity:1;}
+.speech{position:absolute;white-space:pre;font-size:16px;color:#fff;z-index:5;pointer-events:none;opacity:0;animation:speechShake .22s infinite alternate;transition:opacity .9s ease;letter-spacing:.08em;}
+.speech.show{opacity:1;}
+.pop{font-size:24px;animation:pop .38s ease-out forwards;pointer-events:none;}
+.clickHint{position:absolute;white-space:pre;font-size:13px;line-height:1.05;color:#fff;z-index:4;pointer-events:none;text-align:center;animation:hintShake .09s infinite alternate;letter-spacing:.04em;}
+.hit{animation:hit .07s 1;}
+.end{position:absolute;inset:0;display:none;place-items:center;color:#fff;font-size:18px;background:rgba(0,0,0,.45);letter-spacing:.08em;z-index:9;}
+.note{position:absolute;color:#fff;font-size:18px;pointer-events:none;z-index:6;animation:noteFloat 1.1s ease-out forwards;}
+
+@keyframes jitter{from{transform:translate(-4px,-2px) rotate(-4deg)}to{transform:translate(4px,2px) rotate(4deg)}}
+@keyframes shake{from{transform:translateX(-1px)}to{transform:translateX(1px)}}
+@keyframes wave{from{transform:rotate(-1deg)}to{transform:rotate(1deg)}}
+@keyframes hintShake{from{transform:translate(-1px,-1px)}to{transform:translate(1px,1px)}}
+@keyframes pop{0%{opacity:1;transform:scale(.7)}70%{opacity:1;transform:scale(1.25)}100%{opacity:0;transform:scale(1.6)}}
+@keyframes hit{from{filter:invert(1)}to{filter:invert(0)}}
+@keyframes speechShake{from{transform:translateY(-1px)}to{transform:translateY(1px)}}
+@keyframes noteFloat{0%{opacity:1;transform:translate(0,0) rotate(-8deg)}100%{opacity:0;transform:translate(14px,-46px) rotate(12deg)}}
+
+.scroll-hint{width:min(920px,94vw);text-align:center;padding:24px 0 8px;user-select:none;}
+.scroll-hint-text{font-size:12px;color:var(--dim);letter-spacing:.2em;text-transform:uppercase;margin-bottom:8px;}
+.scroll-hint-arrow{font-size:20px;color:var(--c-prompt);animation:scrollHintBounce 1.6s ease-in-out infinite;display:inline-block;}
+@keyframes scrollHintBounce{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(8px);opacity:1}}
+
+.rpg-section{width:min(920px,94vw);margin-top:64px;}
+.rpg-label{font-size:16px;color:var(--dim);letter-spacing:.05em;margin-bottom:20px;}
+.rpg-layout{display:grid;grid-template-columns:176px 1fr;gap:1px;background:#1a1a1a;border:1px solid #1a1a1a;}
+.char-portrait{background:#000;padding:26px 14px 22px;display:flex;flex-direction:column;align-items:center;text-align:center;}
+.cat-ascii{font-size:17px;line-height:1.32;color:var(--fg);white-space:pre;margin-bottom:16px;}
+.p-divider{width:70%;height:1px;background:#222;margin:0 auto 12px;}
+.p-name{font-size:13px;font-weight:700;color:var(--fg);letter-spacing:.06em;margin-bottom:5px;line-height:1.4;word-break:break-all;}
+.p-class{font-size:11px;color:var(--dim);letter-spacing:.07em;margin-bottom:14px;line-height:1.5;}
+.p-lv{font-size:12px;color:var(--dim);letter-spacing:.09em;margin-bottom:8px;}
+.p-lv span{color:var(--fg);font-size:15px;font-weight:700;}
+.p-exp-label{font-size:11px;color:var(--dim);letter-spacing:.07em;margin-bottom:4px;}
+.p-exp{font-size:13px;letter-spacing:.02em;margin-bottom:12px;}
+.p-status{font-size:11px;color:var(--c-active);letter-spacing:.08em;display:flex;align-items:center;gap:5px;justify-content:center;}
+.status-dot{width:5px;height:5px;border-radius:50%;background:var(--c-active);animation:blink 1.4s ease-in-out infinite;flex-shrink:0;box-shadow:0 0 4px var(--c-active);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+.skills-col{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#1a1a1a;}
+.skill-card{background:#1a1a2e;padding:18px 16px 20px;cursor:default;transition:background .18s;position:relative;}
+.skill-card:hover{background:#22223a;}
+.skill-card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:var(--fg);opacity:0;transition:opacity .18s;}
+.skill-card:hover::before{opacity:1;}
+.skill-top{display:flex;align-items:center;gap:7px;margin-bottom:14px;flex-wrap:wrap;}
+.skill-tag{font-size:12px;font-weight:700;color:#000;padding:2px 6px;letter-spacing:.1em;flex-shrink:0;}
+.skill-tag.t-cha{background:var(--c-prompt);}
+.skill-tag.t-int{background:var(--c-keyword);}
+.skill-tag.t-cre{background:var(--c-string);}
+.skill-name{font-size:12px;font-weight:700;color:var(--fg);flex:1;letter-spacing:-.01em;min-width:0;}
+.skill-rank{font-size:11px;color:var(--c-string);letter-spacing:.08em;white-space:nowrap;}
+.skill-stat-row{display:flex;justify-content:space-between;margin-bottom:5px;}
+.skill-stat-name{font-size:11px;color:var(--dim);letter-spacing:.06em;}
+.skill-stat-val{font-size:11px;color:var(--fg);letter-spacing:.04em;}
+.skill-bar{font-size:13px;line-height:1;overflow:hidden;white-space:nowrap;margin-bottom:13px;}
+.bar-fill{color:var(--fg);}
+.bar-empty{color:#252525;}
+.skill-desc{font-size:13px;color:#b0b8c8;line-height:1.8;border-top:1px solid #2a2a44;padding-top:11px;}
+.skill-desc-text{display:block;margin-bottom:7px;}
+.skill-keyword{display:inline-block;font-size:11px;color:#a0a8c0;border:1px solid #2a2a44;padding:1px 5px;margin:2px 2px 0 0;letter-spacing:.04em;}
+
+/* ── CAREER SELECT ── */
+.career-section{width:min(920px,94vw);margin-top:64px;}
+.career-label{font-size:16px;color:var(--dim);letter-spacing:.05em;margin-bottom:20px;}
+.career-card{border:1px solid #1a1a1a;background:#000;}
+.career-top{display:grid;grid-template-columns:84px 1fr 84px;align-items:center;padding:32px 0 8px;user-select:none;}
+.career-arrow-wrap{text-align:center;}
+.career-arrow{background:transparent;border:1px solid #2a2a2a;width:52px;height:52px;display:flex;align-items:center;justify-content:center;color:var(--c-prompt);font-family:inherit;font-size:22px;font-weight:700;cursor:pointer;margin:0 auto 8px;padding:0;transition:all .18s;}
+.career-arrow:hover{border-color:var(--fg);color:var(--fg);background:#0a0a0a;}
+.career-arrow:active{transform:scale(.94);}
+.career-arrow-label{font-size:11px;color:var(--dim);letter-spacing:.14em;}
+.career-stage{text-align:center;transition:opacity .22s ease;}
+.career-stage.fading{opacity:0;}
+.career-cat{font-size:18px;line-height:1.35;color:var(--fg);white-space:pre;margin:0 0 22px;letter-spacing:.04em;display:inline-block;text-align:left;}
+.career-title{font-size:18px;font-weight:700;color:var(--fg);margin-bottom:6px;letter-spacing:-.01em;}
+.career-period{font-size:13px;color:var(--c-string);letter-spacing:.08em;margin-bottom:4px;}
+.career-location{font-size:13px;color:#444;letter-spacing:.05em;}
+
+.career-dots{display:flex;justify-content:center;gap:10px;padding:18px 0 4px;}
+.career-dot{width:8px;height:8px;border-radius:50%;border:1px solid #444;background:transparent;cursor:pointer;padding:0;transition:background .18s,border-color .18s;}
+.career-dot.active{background:var(--fg);border-color:var(--fg);}
+.career-dot:hover{border-color:var(--fg);}
+
+.career-body{border-top:1px solid #1a1a1a;padding:28px 36px 32px;transition:opacity .22s ease;}
+.career-body.fading{opacity:0;}
+.career-body-section{margin-bottom:22px;}
+.career-body-section:last-child{margin-bottom:0;}
+.body-label{font-size:12px;color:var(--dim);letter-spacing:.14em;margin-bottom:10px;font-weight:700;}
+.body-label::before{content:'▸ ';color:var(--c-prompt);}
+.career-about{font-size:13px;color:#bbb;line-height:1.85;margin:0;letter-spacing:.01em;}
+.career-achievements{margin:0;padding:0;list-style:none;}
+.career-achievements li{font-size:12px;color:#aaa;line-height:1.75;padding:5px 0 5px 18px;position:relative;letter-spacing:.01em;}
+.career-achievements li::before{content:'▸';position:absolute;left:0;color:var(--c-prompt);font-size:12px;top:7px;}
+.career-tags{display:flex;flex-wrap:wrap;gap:6px;position:relative;}
+.career-tag{display:inline-block;font-size:12px;color:var(--dim);border:1px solid #2a2a2a;padding:3px 8px;letter-spacing:.05em;}
+@keyframes kb-arr{from{transform:translateY(-2px);opacity:.4;}to{transform:translateY(2px);opacity:1;}}
+@keyframes kb-cur{from{transform:scale(.95);}to{transform:scale(1.05);}}
+.kb-hint{display:flex;align-items:center;gap:8px;margin-bottom:12px;transition:opacity .5s;}
+.kb-hint-icon{font-size:16px;animation:kb-cur 1s ease-in-out infinite alternate;}
+.kb-hint-arrow{font-size:11px;color:#79c0ff;animation:kb-arr .7s ease-in-out infinite alternate;}
+.kb-hint-text{font-size:11px;color:#555;letter-spacing:.06em;}
+.kb-key{font-size:11px;letter-spacing:.05em;padding:7px 16px;background:#f2f2f2;color:#111;border:1px solid #ccc;box-shadow:0 4px 0 #999;border-radius:5px;cursor:pointer;transition:all .15s;user-select:none;font-family:inherit;}
+.kb-key:hover{background:#fff;box-shadow:0 4px 0 #888;}
+.kb-key:active{box-shadow:0 1px 0 #999;transform:translateY(3px);}
+.kb-key.lit-0{background:#0d1f2e;color:#79c0ff;border-color:#79c0ff;box-shadow:0 4px 0 #0a1520,0 0 12px #79c0ff55;}
+.kb-key.lit-1{background:#111f0e;color:#98c379;border-color:#98c379;box-shadow:0 4px 0 #0a1508,0 0 12px #98c37955;}
+.kb-key.lit-2{background:#221a06;color:#e5c07b;border-color:#e5c07b;box-shadow:0 4px 0 #160f02,0 0 12px #e5c07b55;}
+.kb-key.lit-3{background:#1a0e22;color:#c792ea;border-color:#c792ea;box-shadow:0 4px 0 #100816,0 0 12px #c792ea55;}
+.kb-progress{display:flex;align-items:center;gap:10px;margin-top:8px;}
+.kb-progress-track{flex:1;height:3px;background:#1a1a1a;border-radius:2px;overflow:hidden;}
+.kb-progress-fill{height:100%;width:0%;background:#888;border-radius:2px;transition:width .4s ease,background .4s ease;}
+.kb-count{font-size:10px;color:#555;letter-spacing:.06em;min-width:36px;transition:color .3s;}
+.kb-alllit{font-size:11px;color:#e5c07b;letter-spacing:.08em;margin-top:10px;opacity:0;transition:opacity .6s;height:18px;}
+.kb-alllit.flashing{animation:levelUpFlash .9s ease-in-out infinite;}
+@keyframes levelUpFlash{0%,100%{opacity:1;text-shadow:0 0 8px #e5c07b,0 0 16px #e5c07b66;}50%{opacity:.35;text-shadow:0 0 2px #e5c07b44;}}
+.sp{position:absolute;pointer-events:none;border-radius:50%;animation:sf var(--d) ease-out forwards;}
+@keyframes sf{0%{opacity:1;transform:translate(0,0) scale(1);}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(0);}}
+
+@media(max-width:680px){
+  .rpg-layout{grid-template-columns:1fr;}
+  .char-portrait{flex-direction:row;align-items:flex-start;flex-wrap:wrap;gap:16px;padding:20px;}
+  .skills-col{grid-template-columns:1fr;}
+  .career-body{padding:22px 20px 26px;}
+  .career-top{grid-template-columns:64px 1fr 64px;}
+  .career-arrow{width:44px;height:44px;font-size:18px;}
+}
+</style>
+</head>
+<body>
+
+<nav class="lang-switcher" aria-label="Language switcher">
+  <button class="lang-btn active" data-lang="en">EN</button>
+  <button class="lang-btn" data-lang="ja">日本語</button>
+  <button class="lang-btn" data-lang="ko">한국어</button>
+  <button class="lang-btn" data-lang="zh">中文</button>
+</nav>
+
+<header class="header-section">
+  <div class="whoami" data-i18n="whoami"></div>
+  <h1 class="main-quote" data-i18n="quote"></h1>
+  <div class="sub-tag" data-i18n="subtag"></div>
+</header>
+
+<div class="divider"></div>
+
+<main id="game" aria-label="ASCII cat runner game">
+  <div class="line"></div>
+  <pre id="cat" class="entity"> /\_/\
+( •.• )
+ / ></pre>
+  <pre id="homeFish" class="entity home">><)))°></pre>
+  <div id="homeSpeech" class="speech">back home...</div>
+  <div id="end" class="end"></div>
+  <div class="hint">click each thing 10x · SPACE / ↑ jump · R reset</div>
+  <div id="counter" class="counter"></div>
+</main>
+
+<div class="scroll-hint">
+  <div class="scroll-hint-text">scroll to explore</div>
+  <div class="scroll-hint-arrow">↓</div>
+</div>
+
+<div class="divider" style="margin-top:40px"></div>
+
+<!-- ═══ RPG STATUS ═══ -->
+<section class="rpg-section">
+  <div class="rpg-label" data-i18n="statusLabel"></div>
+  <div class="rpg-layout">
+
+    <div class="char-portrait">
+      <pre class="cat-ascii"> /\_/\
+( •.• )
+ / ></pre>
+      <div class="p-divider"></div>
+      <div class="p-name" data-i18n="charName"></div>
+      <div class="p-class" data-i18n="charClass"></div>
+      <div class="p-divider"></div>
+      <div class="p-lv">LV. <span>??</span></div>
+      <div class="p-exp-label" data-i18n="expLabel">EXP</div>
+      <div class="p-exp"><span class="bar-fill">████████████</span><span class="bar-empty">░░░░</span></div>
+      <div class="p-status"><span class="status-dot"></span><span data-i18n="activeLabel"></span></div>
+    </div>
+
+    <div class="skills-col" id="skillsGrid">
+      <div class="skill-card">
+        <div class="skill-top"><span class="skill-tag t-cha">CHA</span><span class="skill-name" data-sk="0-name"></span><span class="skill-rank" data-sk="0-rank"></span></div>
+        <div class="skill-stat-row"><span class="skill-stat-name" data-sk="0-stat"></span><span class="skill-stat-val">92 / 100</span></div>
+        <div class="skill-bar" id="bar-0"><span class="bar-fill">████████████████████</span><span class="bar-empty">████████</span></div>
+        <div class="skill-desc"><span class="skill-desc-text" data-sk="0-desc"></span>
+          <span class="skill-keyword">中文</span><span class="skill-keyword">日本語</span><span class="skill-keyword">한국어</span><span class="skill-keyword">English</span></div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-top"><span class="skill-tag t-int">INT</span><span class="skill-name" data-sk="1-name"></span><span class="skill-rank" data-sk="1-rank"></span></div>
+        <div class="skill-stat-row"><span class="skill-stat-name" data-sk="1-stat"></span><span class="skill-stat-val">94 / 100</span></div>
+        <div class="skill-bar" id="bar-1"><span class="bar-fill">█████████████████████</span><span class="bar-empty">███████</span></div>
+        <div class="skill-desc"><span class="skill-desc-text" data-sk="1-desc"></span>
+          <span class="skill-keyword">deep-thinking</span><span class="skill-keyword">synthesis</span><span class="skill-keyword">clarity</span></div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-top"><span class="skill-tag t-cre">CRE</span><span class="skill-name" data-sk="2-name"></span><span class="skill-rank" data-sk="2-rank"></span></div>
+        <div class="skill-stat-row"><span class="skill-stat-name" data-sk="2-stat"></span><span class="skill-stat-val">96 / 100</span></div>
+        <div class="skill-bar" id="bar-2"><span class="bar-fill">█████████████████████</span><span class="bar-empty">███████</span></div>
+        <div class="skill-desc"><span class="skill-desc-text" data-sk="2-desc"></span>
+          <span class="skill-keyword">write</span><span class="skill-keyword">build</span><span class="skill-keyword">ship</span></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══ CAREER SELECT ═══ -->
+<section class="career-section">
+  <div class="career-label" data-i18n="careerLabel"></div>
+  <div class="career-card">
+    <div class="career-top">
+      <div class="career-arrow-wrap">
+        <button class="career-arrow" id="careerPrev" aria-label="Previous">←</button>
+        <div class="career-arrow-label">PREV</div>
+      </div>
+      <div class="career-stage" id="careerStage">
+        <pre class="career-cat" id="careerCat"></pre>
+        <div class="career-title" id="careerTitle"></div>
+        <div class="career-period" id="careerPeriod"></div>
+        <div class="career-location" id="careerLocation"></div>
+      </div>
+      <div class="career-arrow-wrap">
+        <button class="career-arrow" id="careerNext" aria-label="Next">→</button>
+        <div class="career-arrow-label">NEXT</div>
+      </div>
+    </div>
+
+    <div class="career-dots" id="careerDots"></div>
+
+    <div class="career-body" id="careerBody">
+      <div class="career-body-section">
+        <div class="body-label" data-i18n="aboutLabel"></div>
+        <p class="career-about" id="careerAbout"></p>
+      </div>
+      <div class="career-body-section">
+        <div class="body-label" data-i18n="achievementsLabel"></div>
+        <ul class="career-achievements" id="careerAchievements"></ul>
+      </div>
+      <div class="career-body-section">
+        <div class="body-label" data-i18n="tagsLabel"></div>
+        <div class="kb-hint" id="kbHint">
+          <span class="kb-hint-icon">🖱️</span>
+          <span class="kb-hint-arrow">↓</span>
+          <span class="kb-hint-text">[ click to charge your skills ]</span>
+        </div>
+        <div class="career-tags" id="careerTags"></div>
+        <div class="kb-progress">
+          <div class="kb-progress-track"><div class="kb-progress-fill" id="kbProgressFill"></div></div>
+          <div class="kb-count" id="kbCount">0 / 0</div>
+        </div>
+        <div class="kb-alllit" id="kbAllLit">✦ LEVEL UP&nbsp;&nbsp;&nbsp;· · ·</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+(() => {
+
+/* ════════════════════════════════════════════════════════════
+   ✏️  CAREER DATA — Replace [TODO] fields with real content
+   ════════════════════════════════════════════════════════════ */
+const CAREERS = [
+  {
+    id: 'localizer',
+    cat:
+`  ✨  /\\_/\\   ♥
+    ( ◕‿◕ )
+     /[📱]>
+      /  \\
+   ♫  ♪  ♫`,
+    content: {
+      en: {
+        title: 'The Story Ferryman',
+        period: '2023.01 — 2023.09',
+        location: 'NetEase',
+        about: 'First job. The entire IP voice of an app-and-hardware interactive product — carried solo. Translation, short-form video, social content, all from one pair of hands. The fascinating part: the same character grew subtly different personalities in each language. Short-form video got the obsession — every frame aimed at landing on that nameless spot in the heart.',
+        achievements: [
+          '🎬 A one-person video studio — script, shoot, edit, post, all solo; every frame aimed at "that one spot in the heart"',
+          '🌏 One-person localization — Chinese⇄Japanese⇄English, all translated solo; the same character given subtly different personalities in each language'
+        ],
+        tags: ['Short-Form Video', 'Localization', 'SNS', 'Brand Voice']
+      },
+      ja: {
+        title: '物語の渡し守',
+        period: '2023.01 — 2023.09',
+        location: 'NetEase（網易）',
+        about: '最初のインターンシップ。アプリ連動型のインタラクティブ製品、その IP の表現をまるごとひとりで背負った——翻訳もショート動画もSNSも、全部独力。同じキャラなのに言語ごとに性格が微妙に揺らぐ、そのことが何より面白かった。一番こだわったのはショート動画——心の名前のないあの一点に、ちゃんと刺さるように。',
+        achievements: [
+          '🎬 ひとりのショート動画工房 — 脚本も撮影も編集も投稿も全部独力、すべては「心のあの一点」のために',
+          '🌏 ひとりのローカライズ — 中⇄日⇄英すべて自分の手で、同じキャラを言語ごとに少しずつ違う性格に育てた'
+        ],
+        tags: ['ショート動画', 'ローカライズ', 'SNS', 'ブランドボイス']
+      },
+      ko: {
+        title: '이야기를 옮기는 자',
+        period: '2023.01 — 2023.09',
+        location: 'NetEase (网易)',
+        about: '첫 일자리. 앱과 연동되는 인터랙티브 제품의 IP, 그 표현 전체를 혼자서 떠안았다. 번역, 쇼트폼 영상, SNS 모두 1인 완성. 같은 캐릭터인데 언어마다 성격이 미묘하게 달라진다는 점, 그게 가장 흥미로운 발견이었다. 가장 공들인 건 쇼트폼 영상——마음속 이름 없는 그 한 점에 정확히 닿도록.',
+        achievements: [
+          '🎬 1인 쇼트폼 스튜디오 — 대본·촬영·편집·업로드 전부 혼자, 모든 프레임이 "마음속 그 한 점"을 향해',
+          '🌏 1인 로컬라이제이션 — 중⇄일⇄영 모두 직접 옮기며, 같은 캐릭터를 언어마다 미묘하게 다른 성격으로 빚어냈다'
+        ],
+        tags: ['쇼트폼', '로컬라이제이션', 'SNS', '브랜드 보이스']
+      },
+      zh: {
+        title: '故事的搬运者',
+        period: '2023.01 — 2023.09',
+        location: '网易 NetEase',
+        about: '第一份实习。一个人扛起一款 app 联动硬件的互动 IP——翻译、短视频、SNS 全部独立完成。发现随着自己的翻译，同一个角色在不同语言里会长出微妙不同的性格,太迷人了。短视频做的最较真,每一帧都为戳中那个说不清的爽点。',
+        achievements: [
+          '🎬 一个人的短视频工作室 — 脚本、镜头、剪辑、发布全自己来,每一帧都为戳中"心里那个点"',
+          '🌏 一个人的本地化 — 中⇄日⇄英全部自己翻译,让同一个角色在每种语言里都长出微妙不同的性格'
+        ],
+        tags: ['短视频', '本地化', 'SNS', '品牌调性']
+      }
+    }
+  },
+  {
+    id: 'negotiator',
+    cat:
+`     /\\_/\\
+    ( •.• )
+    /[≡▼≡]\\
+      |◆|
+      / \\
+    [💼] $`,
+    content: {
+      en: {
+        title: 'The Listener & Translator',
+        period: '2024.12 — 2025.12',
+        location: 'Suruga Production Platform — Optical Instruments Div.',
+        about: 'Taking deeply complex precision instruments and making them understandable — in the client\'s language, not the product\'s. At the same time, listening across the full spread of optical manufacturing, gathering scattered needs and shaping them into something visible.',
+        achievements: [
+          '🎯 Simplifying Complexity — Turning complex products into solutions clients could actually understand and use',
+          '👁️ Needs Mapping — Listening across industries, turning scattered voices into a clear map of problems'
+        ],
+        tags: ['B2B', 'Client Communication', 'Needs Mapping', 'Optical Industry']
+      },
+      ja: {
+        title: '聴き手と翻訳者',
+        period: '2024.12 — 2025.12',
+        location: '駿河生産プラットフォーム 光学機器事業部',
+        about: '極めて複雑な精密機器を、相手の言葉で伝わるように噛み砕く。同時に、光学製造業全域にわたるクライアントたちの声に耳を傾け、散らばった課題をひとつの輪郭として整理していった。',
+        achievements: [
+          '🎯 Simplifying Complexity — 複雑な製品を、相手が理解して使えるソリューションへ',
+          '👁️ Needs Mapping — 業界を横断して聴き、散らばる声を明確な課題マップへ'
+        ],
+        tags: ['B2B', 'クライアントコミュニケーション', 'ニーズ整理', '光学業界']
+      },
+      ko: {
+        title: '듣는 자, 전달하는 자',
+        period: '2024.12 — 2025.12',
+        location: '스루가생산플랫폼 광학기기 사업부',
+        about: '극도로 복잡한 정밀 기기를, 고객이 이해할 수 있는 언어로 풀어냈다. 동시에 광학 제조업 전반에 걸친 고객들의 이야기에 귀를 기울이고, 흩어진 요구를 하나의 윤곽으로 정리해나갔다.',
+        achievements: [
+          '🎯 Simplifying Complexity — 복잡한 제품을 고객이 이해하고 쓸 수 있는 솔루션으로',
+          '👁️ Needs Mapping — 업계를 가로질러 듣고, 흩어진 목소리를 선명한 과제 지도로'
+        ],
+        tags: ['B2B', '고객 커뮤니케이션', '니즈 정리', '광학 산업']
+      },
+      zh: {
+        title: '倾听与转译者',
+        period: '2024.12 — 2025.12',
+        location: '骏河生产平台 光学仪器事业部',
+        about: '把极其复杂的精密仪器，用客户能听懂的语言讲清楚——同时，穿梭于横跨整个光学制造业的客户之间，倾听他们真正想解决的问题，把那些散落的需求整理成可以看见的轮廓。',
+        achievements: [
+          '🎯 化繁为简的提案 — 把复杂产品变成客户能听懂、能用到的解决方案',
+          '👁️ 需求整合 — 跨行业倾听，把零散的声音变成清晰的问题地图'
+        ],
+        tags: ['B2B', '客户沟通', '需求整合', '光学行业']
+      }
+    }
+  },
+  {
+    id: 'architect',
+    cat:
+`   ✈ - - - - -
+       /\\_/\\
+      ( •.• )
+       /[🧳]
+        /\\
+        🌐`,
+    content: {
+      en: {
+        title: 'The AI Architect [CURRENT]',
+        period: '2026.01 — Now',
+        location: 'Suruga Production Platform — G-Procurement Tech',
+        about: 'Into the core of global procurement, spanning production sites across Japan, China, and Vietnam. What came into focus: processes locked in place, and information that never quite connected. So — started thinking it through, and building tools to fix it. And kept asking: can this actually work across countries, across systems, in the real world?',
+        achievements: [
+          '⚡ Workflow Redesign — Mapping where things get stuck, then using AI to break it open',
+          '🧠 Knowledge Assetization — Turning "only that person knows" tacit knowledge into a map anyone can navigate'
+        ],
+        tags: ['AI Native', 'Process Redesign', 'Global Procurement', 'Knowledge Systems']
+      },
+      ja: {
+        title: '仕組みを作り変える者 [CURRENT]',
+        period: '2026.01 — 現在',
+        location: '駿河生産プラットフォーム G調達技術部',
+        about: '日・中・越3カ国の生産拠点を横断するグローバル調達の中枢へ。そこで見えてきたのは、固まりきったプロセスと情報の断絶だった。だから自分で考え、それを解くツールを作り始めた。そして問い続けた——この仕組みは、国をまたいで、システムをまたいでも、本当に動くのか？',
+        achievements: [
+          '⚡ Workflow Redesign — 「どこが詰まっているか」を整理してから、AIで突破口を開く',
+          '🧠 Knowledge Assetization — 「あの人しか知らない」暗黙知を、誰でも辿れる地図へ'
+        ],
+        tags: ['AIネイティブ', 'プロセス改善', 'グローバル調達', 'ナレッジ基盤']
+      },
+      ko: {
+        title: '구조를 다시 짜는 자 [CURRENT]',
+        period: '2026.01 — 현재',
+        location: '스루가생산플랫폼 G조달기술부',
+        about: '일·중·베트남 3개국 생산 거점을 가로지르는 글로벌 조달의 중추로. 거기서 보이기 시작한 건 굳어버린 프로세스와 정보의 단절이었다. 그래서 스스로 생각하고, 그것을 풀어낼 도구를 만들기 시작했다. 그리고 계속 물었다——이 구조는 국가를 넘고, 시스템을 넘어도 정말 작동할 수 있는가?',
+        achievements: [
+          '⚡ Workflow Redesign — "어디서 막혔는가"를 정리하고, AI로 돌파구를 만든다',
+          '🧠 Knowledge Assetization — "그 사람만 아는" 암묵지를, 누구나 따라갈 수 있는 지도로'
+        ],
+        tags: ['AI 네이티브', '프로세스 개선', '글로벌 조달', '지식 시스템']
+      },
+      zh: {
+        title: '重塑机制者 [CURRENT]',
+        period: '2026.01 — 至今',
+        location: '骏河生产平台 G调达技术部',
+        about: '走进横跨日·中·越三国生产据点的全球采购中枢。在这里看见了流程固化与信息断层的问题——于是动手思考，自己设计工具去打通它。同时追问：这套解法，能不能在跨国、跨系统的环境里真正落地？',
+        achievements: [
+          '⚡ 重新设计工作流 — 想清楚「哪里卡住了」，再用AI把它打通',
+          '🧠 知识资产化 — 把「只有那个人才知道」的隐性知识，变成人人可查的地图'
+        ],
+        tags: ['AI Native', '流程再造', '全球采购', '知识体系']
+      }
+    }
+  }
+];
+
+/* ──────── Keyboard-key state + fireworks ──────── */
+const litState = CAREERS.map(() => new Set());
+const KB_COLORS = ['#79c0ff','#98c379','#e5c07b','#c792ea'];
+function kbBurst(container,cx,cy,col){
+  for(let i=0;i<26;i++){
+    const a=(i/26)*Math.PI*2,d=32+Math.random()*42,s=document.createElement('div');
+    s.className='sp';
+    s.style.cssText=`left:${cx}px;top:${cy}px;width:${3+Math.random()*3.5}px;height:${3+Math.random()*3.5}px;background:${col};--x:${Math.cos(a)*d}px;--y:${Math.sin(a)*d-14}px;--d:${(.5+Math.random()*.5).toFixed(2)}s`;
+    container.appendChild(s);setTimeout(()=>s.remove(),1200);
+  }
+}
+function kbFireworks(container){
+  const w=container.offsetWidth,h=container.offsetHeight;
+  [{x:w*.2,y:h*.4},{x:w*.5,y:h*.3},{x:w*.8,y:h*.4}].forEach((c,i)=>
+    setTimeout(()=>kbBurst(container,c.x,c.y,KB_COLORS[i]),i*150));
+}
+function handleKbClick(cIdx,tIdx,btn){
+  const set=litState[cIdx];
+  if(set.has(tIdx))return;
+  set.add(tIdx);
+  btn.classList.add('lit-'+(tIdx%4));
+  document.getElementById('kbHint').style.opacity='0';
+  updateKbProgress();
+  const total=(CAREERS[cIdx].content[currentLang]||CAREERS[cIdx].content.en).tags.length;
+  if(set.size===total){
+    document.getElementById('kbAllLit').style.opacity='1';
+    kbFireworks(document.getElementById('careerTags'));
+  }
+}
+function updateKbProgress(){
+  const set=litState[careerIdx];
+  const total=CAREERS[careerIdx].content.en.tags.length;
+  const fill=document.getElementById('kbProgressFill');
+  const count=document.getElementById('kbCount');
+  const allLit=document.getElementById('kbAllLit');
+  fill.style.width=(set.size/total*100)+'%';
+  count.textContent=set.size+' / '+total;
+  if(set.size===total){
+    allLit.style.opacity='1';
+    allLit.classList.add('flashing');
+    fill.style.background='#e5c07b';
+    count.style.color='#e5c07b';
+  }else{
+    allLit.style.opacity='0';
+    allLit.classList.remove('flashing');
+    fill.style.background='#888';
+    count.style.color='#555';
+  }
+}
+
+/* ──────── i18n labels ──────── */
+const T = {
+  zh:{whoami:'> whoami',quote:'把「没做过」变成\n「看我怎么做出来的」\n的创造者。',subtag:'— 以AI为引擎，跨越语言与文化边界。',
+      statusLabel:'> status',charName:'杜文俏',charClass:'CLASS: 桥梁构建者',expLabel:'EXP',activeLabel:'ACTIVE',
+      careerLabel:'> career.select',aboutLabel:'关于',achievementsLabel:'核心成就',tagsLabel:'技能 / 工具',
+      skills:[
+        {name:'跨文化沟通',rank:'S RANK',stat:'CHARISMA',desc:'不是翻译字面，是翻译"懂的人才懂"那股劲儿。同一种声音穿过不同文化，到哪儿都能稳稳拿捏住萌点。'},
+        {name:'深度思考与融合',rank:'S RANK',stat:'INTELLIGENCE',desc:'把陌生的领域当语言来学——游戏、光学、全球采购、AI，每一次都从零进场，几个月后就能和现场的专家平等对话。把表面无关的事物连起来，靠的不是直觉，是反复深入想过之后才看见的脉络。能把复杂的东西讲简单，是因为已经在脑子里把它彻底想透了。'},
+        {name:'从零到一的构建力',rank:'S RANK',stat:'CREATIVITY',desc:'在没有人做过的地方先动手。一个想法到摆在眼前的东西，中间用上一切能用的工具——AI、写作、自动化、设计、SNS——不等许可，不等模板。SNS账号、自动化系统、知识地图，都是这样从空白里长出来的。'}]},
+  ja:{whoami:'> whoami',quote:'「やったことない」を\n「こう作った」に\n変えるクリエイター。',subtag:'— AIを駆使し、言語と文化の壁を越えて。',
+      statusLabel:'> ステータス',charName:'ト　ブンチャオ',charClass:'CLASS: ブリッジビルダー',expLabel:'EXP',activeLabel:'ACTIVE',
+      careerLabel:'> キャリア選択',aboutLabel:'人物像',achievementsLabel:'主な実績',tagsLabel:'スキル / ツール',
+      skills:[
+        {name:'多文化コミュ力',rank:'Sランク',stat:'CHARISMA',desc:'言葉を訳すんじゃない、「分かる人には分かる」あの感覚ごと訳す。文化が変わっても声のトーンはブレない。届いた先で、その人の「萌えポイント」にちゃんとぶっ刺さる。'},
+        {name:'深く考え、繋ぐ力',rank:'Sランク',stat:'INTELLIGENCE',desc:'知らない領域を、ひとつの言語のように学ぶ——ゲーム、光学、グローバル調達、AI。毎回ゼロから入って、数カ月後には現場の専門家と対等に話せる。一見無関係なものを繋げるのは直感じゃない、深く考え抜いたあとに初めて見えてくる筋道だ。複雑なことをシンプルに語れるのは、頭の中ですでに徹底的に整理し切っているから。'},
+        {name:'ゼロイチ構築力',rank:'Sランク',stat:'CREATIVITY',desc:'誰もやっていない場所で、先に手を動かす。アイデアから目の前に置けるモノへ。途中で使える道具は全部使う——AI、文章、自動化、デザイン、SNS。許可も雛形も待たない。SNSアカウント、自動化システム、ナレッジマップ——全部、空白から育てたものだ。'}]},
+  ko:{whoami:'> whoami',quote:'"해본 적 없다"를\n"이렇게 만들었다"로\n바꾸는 크리에이터.',subtag:'— AI를 엔진 삼아, 언어와 문화의 경계를 넘어서.',
+      statusLabel:'> 스테이터스',charName:'두문정',charClass:'CLASS: 브릿지 빌더',expLabel:'EXP',activeLabel:'ACTIVE',
+      careerLabel:'> 커리어 선택',aboutLabel:'소개',achievementsLabel:'주요 성과',tagsLabel:'스킬 / 도구',
+      skills:[
+        {name:'다문화 소통력',rank:'S 랭크',stat:'CHARISMA',desc:'단어를 옮기는 게 아니라, "아는 사람은 아는" 그 감각까지 통째로. 문화가 달라도 목소리의 결은 그대로. 닿는 곳마다, 그 사람의 "모에 포인트"를 정확히 취향저격.'},
+        {name:'깊은 사고와 융합력',rank:'S 랭크',stat:'INTELLIGENCE',desc:'낯선 영역을 하나의 언어처럼 배운다——게임, 광학, 글로벌 조달, AI. 매번 제로에서 들어가 몇 개월 뒤에는 현장의 전문가와 대등하게 대화한다. 표면적으로 무관한 것들을 연결하는 건 직감이 아니라, 깊이 거듭 사고한 끝에야 보이는 맥락이다. 복잡한 것을 간결하게 풀어낼 수 있는 건, 머릿속에서 이미 끝까지 생각해두었기 때문이다.'},
+        {name:'제로투원 구축력',rank:'S 랭크',stat:'CREATIVITY',desc:'아무도 해본 적 없는 자리에서, 먼저 손을 움직인다. 아이디어에서 눈앞에 놓을 수 있는 것으로. 그 사이에 쓸 수 있는 도구는 전부 쓴다——AI, 글쓰기, 자동화, 디자인, SNS. 허가도, 템플릿도 기다리지 않는다. SNS 계정, 자동화 시스템, 지식 지도——모두 빈 공간에서 길러낸 것들이다.'}]},
+  en:{whoami:'> whoami',quote:'A creator who turns\n"never done this before" into\n"here\'s how I built it."',subtag:'— AI-powered, boundary-crossing, across languages and cultures.',
+      statusLabel:'> status',charName:'Wenqiao DU',charClass:'CLASS: Bridge Builder',expLabel:'EXP',activeLabel:'ACTIVE',
+      careerLabel:'> career.select',aboutLabel:'ABOUT',achievementsLabel:'KEY ACHIEVEMENTS',tagsLabel:'SKILLS / TOOLS',
+      skills:[
+        {name:'Cross-cultural Comms',rank:'S RANK',stat:'CHARISMA',desc:'Not translating words — translating that "yeah, this *gets* me" feeling. Same voice across cultures, always landing right where it clicks.'},
+        {name:'Deep Thinking & Synthesis',rank:'S RANK',stat:'INTELLIGENCE',desc:'Treats unfamiliar fields like languages to learn — games, optics, global procurement, AI. Every time, starting from zero; a few months in, speaking on equal terms with the experts in the room. Connecting things that look unrelated isn\'t intuition — it\'s the thread that only appears after thinking it through, deeply and repeatedly. Complex things come out simple because they\'ve already been thought all the way through.'},
+        {name:'Zero-to-One Builder',rank:'S RANK',stat:'CREATIVITY',desc:'Wherever no one\'s done it before, hands start moving first. From an idea to something you can place in front of you — using every tool that helps along the way: AI, writing, automation, design, SNS. No permission, no template required. SNS accounts, automation systems, knowledge maps — all grown out of blank space.'}]}
+};
+
+let currentLang = 'en';
+let careerIdx = 0;
+
+/* Color the "> command" prompt syntax */
+function colorPrompt(text){
+  if(text.startsWith('> ')){
+    return `<span class="c-prompt">&gt;</span> <span class="c-keyword">${text.substring(2)}</span>`;
+  }
+  return text;
+}
+
+function setLang(lang){
+  currentLang = lang;
+  const t = T[lang];
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
+  const set = (sel,val,html)=>{const el=document.querySelector(sel);if(el){if(html)el.innerHTML=val;else el.textContent=val;}};
+  set('[data-i18n="whoami"]',colorPrompt(t.whoami),true);
+  set('[data-i18n="quote"]',t.quote.replace(/\n/g,'<br>'),true);
+  set('[data-i18n="subtag"]',t.subtag);
+  set('[data-i18n="statusLabel"]',colorPrompt(t.statusLabel),true);
+  set('[data-i18n="charName"]',t.charName);
+  set('[data-i18n="charClass"]',t.charClass);
+  set('[data-i18n="expLabel"]',t.expLabel);
+  set('[data-i18n="activeLabel"]',t.activeLabel);
+  set('[data-i18n="careerLabel"]',colorPrompt(t.careerLabel),true);
+  set('[data-i18n="aboutLabel"]',t.aboutLabel);
+  set('[data-i18n="achievementsLabel"]',t.achievementsLabel);
+  set('[data-i18n="tagsLabel"]',t.tagsLabel);
+  t.skills.forEach((s,i)=>{
+    set(`[data-sk="${i}-name"]`,s.name);
+    set(`[data-sk="${i}-rank"]`,s.rank);
+    set(`[data-sk="${i}-stat"]`,s.stat);
+    set(`[data-sk="${i}-desc"]`,s.desc);
+  });
+  renderCareer(true);
+}
+
+/* ──────── Career rendering ──────── */
+function renderCareer(skipAnim){
+  const c = CAREERS[careerIdx];
+  const data = c.content[currentLang] || c.content.en;
+  document.getElementById('careerCat').textContent = c.cat;
+  document.getElementById('careerTitle').textContent = data.title;
+  document.getElementById('careerPeriod').textContent = data.period;
+  document.getElementById('careerLocation').textContent = data.location;
+  document.getElementById('careerAbout').textContent = data.about;
+  const ulEl = document.getElementById('careerAchievements');
+  ulEl.innerHTML = data.achievements.map(()=>`<li></li>`).join('');
+  ulEl.querySelectorAll('li').forEach((li,i)=>{li.textContent = data.achievements[i];});
+  const tagEl = document.getElementById('careerTags');
+  const careerLitSet = litState[careerIdx];
+  tagEl.innerHTML = data.tags.map((_,i)=>`<button class="kb-key${careerLitSet.has(i)?' lit-'+(i%4):''}" data-idx="${i}"></button>`).join('');
+  tagEl.querySelectorAll('.kb-key').forEach((btn,i)=>{
+    btn.textContent = data.tags[i];
+    btn.addEventListener('click', () => handleKbClick(careerIdx, i, btn));
+  });
+  document.getElementById('kbHint').style.opacity = careerLitSet.size > 0 ? '0' : '1';
+  updateKbProgress();
+  const dotsEl = document.getElementById('careerDots');
+  if(!dotsEl.children.length){
+    CAREERS.forEach((_,i)=>{
+      const d = document.createElement('button');
+      d.className='career-dot'+(i===careerIdx?' active':'');
+      d.setAttribute('aria-label','Go to career '+(i+1));
+      d.addEventListener('click',()=>switchCareer(i - careerIdx));
+      dotsEl.appendChild(d);
+    });
+  } else {
+    [...dotsEl.children].forEach((d,i)=>d.classList.toggle('active',i===careerIdx));
+  }
+}
+
+function switchCareer(dir){
+  if(!dir) return;
+  const stage = document.getElementById('careerStage');
+  const body = document.getElementById('careerBody');
+  stage.classList.add('fading'); body.classList.add('fading');
+  setTimeout(()=>{
+    careerIdx = (careerIdx + dir + CAREERS.length*10) % CAREERS.length;
+    renderCareer();
+    requestAnimationFrame(()=>{
+      stage.classList.remove('fading');
+      body.classList.remove('fading');
+    });
+  },220);
+}
+
+document.getElementById('careerPrev').addEventListener('click',()=>switchCareer(-1));
+document.getElementById('careerNext').addEventListener('click',()=>switchCareer(1));
+
+window.addEventListener('keydown',(e)=>{
+  if(e.code==='ArrowLeft'||e.code==='ArrowRight'){
+    const rect = document.querySelector('.career-section').getBoundingClientRect();
+    if(rect.top < window.innerHeight && rect.bottom > 0){
+      switchCareer(e.code==='ArrowLeft'?-1:1);
+    }
+  }
+});
+
+let touchStartX = 0;
+const cardEl = document.querySelector('.career-card');
+cardEl.addEventListener('touchstart',(e)=>{touchStartX = e.touches[0].clientX;},{passive:true});
+cardEl.addEventListener('touchend',(e)=>{
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if(Math.abs(dx) > 50) switchCareer(dx < 0 ? 1 : -1);
+});
+
+document.querySelectorAll('.lang-btn').forEach(b=>{
+  b.addEventListener('click',()=>setLang(b.dataset.lang));
+});
+setLang('en');
+
+/* ──────── Skill bar animation ──────── */
+const barDefs=[{id:'bar-0',fill:20,total:28},{id:'bar-1',fill:21,total:28},{id:'bar-2',fill:22,total:28}];
+let barAnimated=false;
+function animateBars(){
+  if(barAnimated)return; barAnimated=true;
+  barDefs.forEach(({id,fill,total})=>{
+    const el=document.getElementById(id); if(!el)return;
+    const f=el.querySelector('.bar-fill'), e=el.querySelector('.bar-empty');
+    f.textContent=''; e.textContent='░'.repeat(total);
+    let i=0; const iv=setInterval(()=>{if(i>fill){clearInterval(iv);return;}f.textContent='█'.repeat(i);e.textContent='░'.repeat(total-i);i++;},40);
+  });
+}
+const obs=new IntersectionObserver(en=>{if(en[0].isIntersecting)animateBars();},{threshold:.3});
+const sg=document.getElementById('skillsGrid'); if(sg)obs.observe(sg);
+
+/* ──────── Game ──────── */
+const game=document.getElementById('game');
+if(window.matchMedia('(pointer: coarse)').matches||window.innerWidth<600){
+  game.innerHTML='<div style="color:#fff;display:grid;place-items:center;height:100%;font-size:18px;letter-spacing:.08em;text-align:center;line-height:1.8">ฅ^•ﻌ•^ฅ<br><span style="font-size:13px;color:#aaa">open on desktop for a surprise</span></div>';
+  return;
+}
+const cat=document.getElementById('cat'),end=document.getElementById('end'),counter=document.getElementById('counter'),homeFish=document.getElementById('homeFish'),homeSpeech=document.getElementById('homeSpeech');
+const CAT_NORMAL=' /\\_/\\\n( •.• )\n / >',CAT_DIZZY=' /\\_/\\\n( x.x )\n / >💫',CAT_HAPPY=' /\\_/\\\n( ^.^ )\n / >🐟';
+const specs=[{type:'rabbit',html:' (\\_/)\n(◣_◢)\n \\vv/',speed:2.38,bottom:66,gap:940},{type:'car',html:' __/[]\\__\n  O----O',speed:3.18,bottom:68,gap:760},{type:'mail',html:'[MAIL]\n !!!\n RE:',speed:2.05,bottom:70,gap:620},{type:'human',html:'  ♥\n \\o/  pspsps~\n  |\n / \\',speed:2.18,bottom:64,gap:0}];
+let frame=0,current=null,clickHint=null,index=-1,running=true,catY=64,catX=48,vy=0,jumping=false,dizzy=false,goingHome=false,goalReached=false,nextTimer=null,finishX=760;
+function setFP(){finishX=Math.max(680,game.clientWidth-130);homeFish.style.left=finishX+'px';homeFish.style.bottom='76px';}
+function resetGame(){document.querySelectorAll('.obstacle,.pop,.clickHint,.note').forEach(e=>e.remove());clearTimeout(nextTimer);frame=0;index=-1;current=null;clickHint=null;running=true;catY=64;catX=48;vy=0;jumping=false;dizzy=false;goingHome=false;goalReached=false;cat.textContent=CAT_NORMAL;cat.style.bottom=catY+'px';cat.style.left=catX+'px';end.style.display='none';counter.textContent='';homeFish.classList.remove('show');homeSpeech.classList.remove('show');setFP();scheduleNext(520);}
+function scheduleNext(d){clearTimeout(nextTimer);nextTimer=setTimeout(spawnNext,d);}
+function spawnNext(){if(!running||dizzy||goalReached||goingHome)return;index+=1;if(index>=specs.length){startGoingHome();return;}const spec=specs[index];const el=document.createElement('pre');el.className='entity obstacle '+spec.type;el.textContent=spec.html;el.dataset.type=spec.type;el.dataset.x=String(game.clientWidth+44);el.dataset.speed=String(spec.speed);el.dataset.clicksLeft='10';el.dataset.gap=String(spec.gap);el.style.left=(game.clientWidth+44)+'px';el.style.bottom=spec.bottom+'px';game.appendChild(el);current=el;clickHint=document.createElement('pre');clickHint.className='clickHint';clickHint.textContent='↓\nclick that';game.appendChild(clickHint);updateCH();updateCtr(el);el.addEventListener('click',(ev)=>{ev.stopPropagation();const left=Math.max(0,Number(el.dataset.clicksLeft)-1);el.dataset.clicksLeft=String(left);el.classList.remove('hit');void el.offsetWidth;el.classList.add('hit');updateCtr(el);if(left<=0){explode(el);removeCH();current=null;counter.textContent='';if(index>=specs.length-1)startGoingHome();else scheduleNext(Number(spec.gap));}});}
+function updateCH(){if(!current||!clickHint)return;const x=Number(current.dataset.x);clickHint.style.left=(x+6)+'px';clickHint.style.bottom=(parseFloat(current.style.bottom)+current.offsetHeight+26)+'px';}
+function removeCH(){if(clickHint)clickHint.remove();clickHint=null;}
+function updateCtr(el){if(!el){counter.textContent='';return;}counter.textContent=`${el.dataset.type.toUpperCase()} ${10-Number(el.dataset.clicksLeft)}/10`;}
+function explode(el){const r=el.getBoundingClientRect(),gr=game.getBoundingClientRect(),pop=document.createElement('pre');pop.className='entity pop';pop.textContent='* POP *';pop.style.left=(r.left-gr.left+r.width/2-42)+'px';pop.style.top=(r.top-gr.top+r.height/2-14)+'px';game.appendChild(pop);el.remove();setTimeout(()=>pop.remove(),450);}
+function jump(){if(dizzy||goalReached)return;if(!jumping){jumping=true;vy=9.2;}}
+function spawnNote(){const n=document.createElement('div');n.className='note';n.textContent=Math.random()<.5?'♪':'♫';n.style.left=(catX+18+(Math.random()*16-8))+'px';n.style.bottom=(catY+56+(Math.random()*8))+'px';game.appendChild(n);setTimeout(()=>n.remove(),1100);}
+function rectsOverlap(a,b){return!(a.right<b.left||a.left>b.right||a.bottom<b.top||a.top>b.bottom);}
+function faint(){if(dizzy||goalReached)return;dizzy=true;running=false;goingHome=false;clearTimeout(nextTimer);removeCH();cat.textContent=CAT_DIZZY;counter.textContent='DIZZY';setTimeout(resetGame,1200);}
+function startGoingHome(){if(goalReached||dizzy)return;clearTimeout(nextTimer);removeCH();current=null;goingHome=true;running=true;counter.textContent='';setTimeout(()=>homeFish.classList.add('show'),360);}
+function win(){goalReached=true;running=false;goingHome=false;clearTimeout(nextTimer);cat.textContent=CAT_HAPPY;counter.textContent='';posSpeech();homeSpeech.classList.add('show');}
+function posSpeech(){const cr=cat.getBoundingClientRect(),gr=game.getBoundingClientRect();homeSpeech.style.left=(cr.left-gr.left-18)+'px';homeSpeech.style.bottom=(parseFloat(cat.style.bottom||'64')+cat.offsetHeight+16)+'px';}
+function loop(){frame++;if(jumping){catY+=vy;vy-=.55;if(catY<=64){catY=64;vy=0;jumping=false;}cat.style.bottom=catY+'px';}if(running&&current){let x=Number(current.dataset.x)-Number(current.dataset.speed);current.dataset.x=String(x);current.style.left=x+'px';updateCH();if(rectsOverlap(cat.getBoundingClientRect(),current.getBoundingClientRect()))faint();if(x<-180){const gap=Number(current.dataset.gap||700);current.remove();removeCH();current=null;counter.textContent='';if(index>=specs.length-1)startGoingHome();else scheduleNext(gap);}}if(goingHome&&!goalReached){catX+=1.8+Math.min(2.6,(catX-48)*.005);cat.style.left=catX+'px';if(!jumping&&frame%26===0)jump();if(frame%11===0)spawnNote();posSpeech();if(catX>=finishX-90)win();}requestAnimationFrame(loop);}
+window.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();jump();}if(e.key.toLowerCase()==='r')resetGame();});
+game.addEventListener('click',jump);
+window.addEventListener('resize',setFP);
+resetGame();loop();
+
+})();
+</script>
+</body>
+</html>
